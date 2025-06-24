@@ -88,42 +88,52 @@ Generates a sliding time window-function query that counts matching events withi
 #### Example
 
 ```yaml
-title: Multiple Failed Logins
-status: test
+title: Windows Failed Logon
+id: dc9f1a2e-7d3b-4f1c-b8f4-1e23eadf4567
+status: stable
 logsource:
-  category: authentication
+  product: windows
+  service: security
 detection:
-  sel:
+  selection:
     EventID: 4625
-    TargetUserName: admin
-  condition: sel
+  condition: selection
+---
+title: Possible Brute-Force Attack via Repeated Logon Failures
+id: e8b2c3d4-5f6a-7b8c-9d0e-f1a2b3c4d5e6
+status: stable
+description: Detects more than 5 failed Windows logon attempts from the same source IP within 10 minutes.
 correlation:
   type: event_count
   rules:
-    - base_rule
+    - dc9f1a2e-7d3b-4f1c-b8f4-1e23eadf4567
   group-by:
-    - hostname
-  timespan: 15m
+    - SourceIp
+  timespan: 10m
   condition:
     gte: 5
 ```
-
+Gives:
 ```sql
 WITH event_counts AS (
-  SELECT *,
-    COUNT(*) OVER (
-      PARTITION BY hostname
-      ORDER BY time
-      RANGE BETWEEN INTERVAL '900' SECOND PRECEDING AND CURRENT ROW
-    ) AS event_count
-  FROM my_table
-  WHERE EventID = 4625
-    AND LOWER(TargetUserName) = 'admin'
-  ORDER BY time
+    SELECT
+        *,
+        COUNT(*) OVER (
+            PARTITION BY SourceIp
+            ORDER BY time
+            RANGE BETWEEN INTERVAL '600' SECOND PRECEDING AND CURRENT ROW
+        ) AS event_count
+    FROM
+        <TABLE>
+    WHERE
+        EventID = 4625
 )
-SELECT *
-FROM event_counts
-WHERE event_count >= 5;
+SELECT
+    *
+FROM
+    event_counts
+WHERE
+    event_count >= 5
 ```
 
 ---
