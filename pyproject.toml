@@ -1,10 +1,36 @@
-[tool.poetry]
+[project]
 name = "pySigma-backend-athena"
-version = "0.1.0"
+dynamic = [ "version", "classifiers" ]
 description = "pySigma athena backend"
-authors = ["Neil Smith <neil@nsmith.net>"]
-license = "MIT"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+keywords = ["sigma", "pySigma", "athena", "aws"]
+authors = [
+  { name = "Neil Smith", email = "neil@nsmith.net" },
+]
+
+
+[project.urls]
+Homepage = "https://github.com/nsmithuk/pySigma-backend-athena"
+Documentation = "https://github.com/nsmithuk/pySigma-backend-athena#readme"
+Issues = "https://github.com/nsmithuk/pySigma-backend-athena/issues"
+Source = "https://github.com/nsmithuk/pySigma-backend-athena"
+
+[tool.poetry]
+version = "0.1.0"
 repository = "https://github.com/nsmithuk/pySigma-backend-athena"
+readme = "README.md"
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Programming Language :: Python",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: Implementation :: PyPy",
+]
 packages = [
     { include = "sigma" }
 ]
