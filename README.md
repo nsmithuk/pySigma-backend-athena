@@ -21,7 +21,7 @@ functions—aren't implemented; see the Limitations section below.
 ## Limitations
 
 - Full-text searches (value-only expressions) are not supported.
-- Only the `event_count` correlation rule type is supported, and only when a single rule is referenced.
+- At present, only the `event_count` correlation rule type is supported, and only when a single rule is referenced.
 
 ---
 
@@ -123,17 +123,10 @@ WITH event_counts AS (
             ORDER BY time
             RANGE BETWEEN INTERVAL '600' SECOND PRECEDING AND CURRENT ROW
         ) AS event_count
-    FROM
-        <TABLE>
-    WHERE
-        EventID = 4625
+    FROM <TABLE>
+    WHERE EventID = 4625
 )
-SELECT
-    *
-FROM
-    event_counts
-WHERE
-    event_count >= 5
+SELECT * FROM event_counts WHERE event_count >= 5
 ```
 
 ---
