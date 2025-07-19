@@ -52,35 +52,12 @@ class athenaBaseBackend(TextQueryBackend):
             **backend_options: Additional backend-specific options.
         """
         super().__init__(processing_pipeline, collect_errors, **backend_options)
-        # self._correlation_type: Union[None, SigmaCorrelationTypeLiteral] = None
-        # self._correlation_value_count_field: Union[None, str] = None
 
-        self._table_name: str = backend_options.get("table") or "<TABLE>"
+        self._default_table_name: str = backend_options.get("table") or "<TABLE>"
 
-        select_fields: list[str] = backend_options.get("field_list") or ["*"]
-        pre_escaped_field_list: list[str] = (
-            backend_options.get("pre_escaped_field_list") or []
-        )
-
-        formatted_fields: list[str] = [
-            self._format_select_field(s) for s in select_fields
-        ] + pre_escaped_field_list
-
-        self._formatted_fields = ", ".join(formatted_fields)
-
-    def _format_select_field(self, field: str) -> str:
-        if field == "*":
-            return field
-
-        match = re.search(r"\s(as)\s", field, flags=re.IGNORECASE)
-        if match:
-            start, end = match.span()
-            field_name = self.escape_and_quote_field(field[:start])
-            seperator = field[start:end]
-            field_as = self.escape_and_quote_field(field[end:])
-            return field_name + seperator + field_as
-
-        return self.escape_and_quote_field(field)
+        self._element_at_fields: list[str] = backend_options.get("element_at_fields") or []
+        if isinstance(self._element_at_fields, str):
+            self._element_at_fields = [e.strip() for e in self._element_at_fields.split(",")]
 
     # ----------------------------------------------------------------------------------------------------------
     # General Setup
@@ -231,9 +208,13 @@ class athenaBaseBackend(TextQueryBackend):
         """
 
         # Split on unescaped dots: matches a literal dot (.) only if it is not preceded by a backslash (i.e., not escaped).
-        # We need to tread a dot (.) in a field name as an indicator of hierarchy, thus we should escape around each part.
+        # We need to treat a dot (.) in a field name as an indicator of hierarchy, thus we should escape around each part.
         # e.g actor.us@er.uid -> actor."us@er".uid
         parts = [p.replace(r"\.", ".") for p in re.split(r"(?<!\\)\.", field_name)]
+
+        # We need to support accessing map<string,string> fields (although we'll only support them at the top level).
+        if parts[0] in self._element_at_fields:
+            return f'''element_at({parts[0]}, '{".".join(parts[1:])}')'''
 
         escaped_and_quoted_parts: list[str] = []
 
@@ -343,8 +324,8 @@ class athenaBaseBackend(TextQueryBackend):
 
         return True
 
-    def finalize_query_default(
-        self, rule: SigmaRule, query: str, index: int, state: ConversionState
+    def athena_finalize_query_default(
+        self, rule: SigmaRule, query: str, state: ConversionState
     ) -> Any:
         """
         Finalize the query by adding SELECT and aggregation clauses.
@@ -359,10 +340,47 @@ class athenaBaseBackend(TextQueryBackend):
             The finalized Athena query string.
         """
 
+        table_name = state.processing_state.get("table_name") or self._default_table_name
+
+        # ---
+
+        select_fields = rule.fields or ["*"]
+
+        formatted_select_fields: str = ", ".join([
+            self._format_select_field(s) for s in select_fields
+        ])
+
+        # ---
+
         athena_query = (
-            f"SELECT {self._formatted_fields} FROM {self._table_name} WHERE {query}"
+            f"SELECT {formatted_select_fields} FROM {table_name} WHERE {query}"
         )
         return athena_query
+
+    def finalize_query_default(
+        self, rule: SigmaRule, query: str, index: int, state: ConversionState
+    ) -> Any:
+        return self.athena_finalize_query_default(rule, query, state)
+
+    # ----------------------------------------------------------------------------------------------------------
+
+    def _format_select_field(self, field: str) -> str:
+        if field == "*":
+            return field
+
+        # If it looks like a function, we leave it alone.
+        if "(" in field and ")" in field:
+            return field
+
+        match = re.search(r"\s(as)\s", field, flags=re.IGNORECASE)
+        if match:
+            start, end = match.span()
+            field_name = self.escape_and_quote_field(field[:start])
+            seperator = field[start:end]
+            field_as = self.escape_and_quote_field(field[end:])
+            return field_name + seperator + field_as
+
+        return self.escape_and_quote_field(field)
 
     # ----------------------------------------------------------------------------------------------------------
 

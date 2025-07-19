@@ -1,0 +1,79 @@
+# Example table mapping pipeline.
+name: AWS Security Lake Table Mapping
+priority: 100
+
+vars:
+  region: eu_west_2
+
+transformations:
+  - id: waf_table
+    type: set_state
+    key: table_name
+    val: "amazon_security_lake_table_{region}_waf_2_0"
+    rule_conditions:
+      - type: logsource
+        product: aws
+        service: waf
+
+  - id: vpcflow_table
+    type: set_state
+    key: table_name
+    val: "amazon_security_lake_table_{region}_vpc_flow_2_0"
+    rule_conditions:
+      - type: logsource
+        product: aws
+        service: vpcflow
+
+  - id: securityhub_table
+    type: set_state
+    key: table_name
+    val: "amazon_security_lake_table_{region}_sh_findings_2_0"
+    rule_conditions:
+      - type: logsource
+        product: aws
+        service: securityhub
+
+  - id: s3_table
+    type: set_state
+    key: table_name
+    val: "amazon_security_lake_table_{region}_s3_data_2_0"
+    rule_conditions:
+      - type: logsource
+        product: aws
+        service: cloudtrail_s3
+
+  - id: route53_table
+    type: set_state
+    key: table_name
+    val: "amazon_security_lake_table_{region}_route53_2_0"
+    rule_conditions:
+      - type: logsource
+        product: aws
+        service: route53
+
+  - id: lambda_exec_table
+    type: set_state
+    key: table_name
+    val: "amazon_security_lake_table_{region}_lambda_execution_2_0"
+    rule_conditions:
+      - type: logsource
+        product: aws
+        service: cloudtrail_lambda
+
+  - id: eks_audit_table
+    type: set_state
+    key: table_name
+    val: "amazon_security_lake_table_{region}_eks_audit_2_0"
+    rule_conditions:
+      - type: logsource
+        product: aws
+        service: eks_audit
+
+  - id: cloudtrail_mgmt_table
+    type: set_state
+    key: table_name
+    val: "amazon_security_lake_table_{region}_cloud_trail_mgmt_2_0"
+    rule_conditions:
+      - type: logsource
+        product: aws
+        service: cloudtrail

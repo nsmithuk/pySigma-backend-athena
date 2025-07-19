@@ -21,7 +21,7 @@ functions—aren't implemented; see the Limitations section below.
 ## Limitations
 
 - Full-text searches (value-only expressions) are not supported.
-- At present, only the `event_count` correlation rule type is supported, and only when a single rule is referenced.
+- At present, only the `event_count` correlation rule type is supported.
 
 ---
 
@@ -57,7 +57,7 @@ from sigma.backends.athena import athenaBackend
 from sigma.collection import SigmaCollection
 
 # Initialize the backend, optionally specifying table, fields, and time field
-backend = athenaBackend(table="my_table", field_list=["*"], time_field="timestamp")
+backend = athenaBackend()
 
 # Load your Sigma rule collection
 collection = SigmaCollection.from_yaml("...")
@@ -67,6 +67,99 @@ queries = backend.convert(collection)
 for q in queries:
     print(q)
 ```
+
+### Set Table Name
+
+There are a few ways of setting the table name that will appear in the SQL.
+
+If all of your rules use the same table name, regardless of the `logsource` set, you can pass a backend-option of `table`.
+
+For example:
+```python
+athena_backend = athenaBackend(table="events")
+```
+
+Will result in:
+```sql
+SELECT * FROM events WHERE ...
+```
+
+If you need to set your table name based on the `logsource` seen, you can use a pipeline. The backend will look for a 
+processing state value of `table_name` and, if set, will use this table name.
+
+For example:
+```yaml
+name: AWS Security Lake Table Mapping
+priority: 100
+
+vars:
+  region: eu_west_2
+
+transformations:
+  - id: cloudtrail_mgmt_table
+    type: set_state
+    key: table_name
+    val: "amazon_security_lake_table_{region}_cloud_trail_mgmt_2_0"
+    rule_conditions:
+      - type: logsource
+        product: aws
+        service: cloudtrail
+```
+
+### Set Table Name with AWS Security Lake
+
+If you are using this backend with AWS Security Lake, a helper plugin is also provided for setting the correct table name.
+
+For example, the following will map an AWS CloudTrail source to `amazon_security_lake_table_eu_west_2_cloud_trail_mgmt_2_0`.
+
+```python
+from sigma.pipelines.athena import athena_pipeline_security_lake_table_name
+from sigma.backends.athena import athenaBackend
+from sigma.collection import SigmaCollection
+
+pipeline = athena_pipeline_security_lake_table_name()
+backend = athenaBackend(
+  aws_table_region="eu-west-2",  # Replace with your AWS region  
+  processing_pipeline=pipeline,    
+)
+
+rules = SigmaCollection.load_ruleset("path/to/rules/")
+queries = backend.convert(rules)
+```
+
+This supports the following log sources:
+* product: `aws`, service: `cloudtrail`
+* product: `aws`, service: `cloudtrail_s3`
+* product: `aws`, service: `cloudtrail_lambda`
+* product: `aws`, service: `route53`
+* product: `aws`, service: `security_hub`
+* product: `aws`, service: `vpc_flow_logs`
+* product: `aws`, service: `waf`
+* product: `aws`, service: `eks_audit`
+
+### Select Column Names
+
+The backend supports the [fields](https://sigmahq.io/sigma-specification/specification/sigma-rules-specification.html#fields) attribute in Sigma rules. 
+If a Sigma rule specifies a list of fields, the generated Athena SQL query will SELECT only those specified fields instead of using `SELECT *`.
+
+This is useful for optimising queries by retrieving only necessary data.
+
+For example, if your Sigma rule includes:
+```yaml
+fields:
+  - uid
+  - time_dt
+  - process.command_line as command_line
+```
+
+The generated query will start with:
+```sql
+SELECT uid, time_dt, process.command_line as command_line FROM ...
+```
+
+If no `fields` are specified in the rule, the query defaults to `SELECT *`.
+
+This feature is automatically applied when converting rules with the backend.
 
 ---
 
@@ -115,18 +208,33 @@ correlation:
 ```
 Gives:
 ```sql
-WITH event_counts AS (
-    SELECT
-        *,
-        COUNT(*) OVER (
-            PARTITION BY SourceIp
-            ORDER BY time
-            RANGE BETWEEN INTERVAL '600' SECOND PRECEDING AND CURRENT ROW
-        ) AS event_count
+WITH combined_events AS (
+    SELECT *
     FROM <TABLE>
     WHERE EventID = 4625
+),
+event_counts AS (
+    SELECT *,
+           COUNT(*) OVER (
+               PARTITION BY SourceIp
+               ORDER BY time
+               RANGE BETWEEN INTERVAL '600' SECOND PRECEDING AND CURRENT ROW
+           ) AS correlation_event_count
+    FROM combined_events
 )
-SELECT * FROM event_counts WHERE event_count >= 5
+SELECT *
+FROM event_counts
+WHERE correlation_event_count >= 5;
+```
+
+### Specifying the DateTime column to use for the time window
+
+By default, the `time` column is used for the rule's sliding time window. This can be changed by setting the
+`time_field` backend-option.
+
+For example:
+```python
+athena_backend = athenaBackend(time_field="time_dt")
 ```
 
 ---
@@ -150,4 +258,3 @@ pytest
 ## License
 
 Licensed under the [MIT License](LICENSE).
-

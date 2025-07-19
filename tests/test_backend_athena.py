@@ -7,7 +7,9 @@ from sigma.backends.athena import athenaBackend
 
 @pytest.fixture
 def athena_backend():
-    return athenaBackend()
+    return athenaBackend(
+        element_at_fields = ["unmapped"]
+    )
 
 
 def test_athena_and_expression(athena_backend: athenaBackend):
@@ -546,6 +548,28 @@ def test_athena_special_characters_dots_in_field_name(athena_backend: athenaBack
         ]
     )
 
+def test_athena_element_at_in_field_name(athena_backend: athenaBackend):
+    assert (
+        athena_backend.convert(
+            SigmaCollection.from_yaml(
+                """
+            title: Test Special Characters in Field Name
+            status: test
+            logsource:
+                category: test_category
+                product: test_product
+            detection:
+                sel:
+                    # We've set 'unmapped' in 'element_at_fields' for the tests.
+                    unmapped.serviceEventDetails.account_id: Value
+                condition: sel
+        """
+            )
+        )
+        == [
+            """SELECT * FROM <TABLE> WHERE LOWER(element_at(unmapped, 'serviceEventDetails.account_id')) = 'value'"""
+        ]
+    )
 
 def test_athena_empty_value(athena_backend: athenaBackend):
     assert (

@@ -18,6 +18,7 @@ transformations:
       userIdentity.sessionContext.attributes.mfaAuthenticated: is_mfa
       eventID: metadata.uid
       eventTime: time_dt
+      serviceEventDetails.account_id: unmapped.serviceEventDetails.account_id
     rule_conditions:
       - type: logsource
         product: aws
