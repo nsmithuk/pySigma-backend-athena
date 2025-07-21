@@ -13,7 +13,15 @@ class SetStateFromBackendOptionsTransformation(Transformation):
     def apply(self, pipeline: "sigma.processing.pipeline.Proces", rule: SigmaRule) -> None:
         super().apply(pipeline, rule)
         values = self.default_values | pipeline.vars
-        pipeline.state[self.key] = self.template.format_map(values)
+        try:
+            pipeline.state[self.key] = self.template.format_map(values)
+        except KeyError as e:
+            missing_key = e.args[0]
+            raise KeyError(
+                f"Missing key '{missing_key}' in template substitution for '{self.key}'. "
+                f"Available keys: {list(values.keys())}. "
+                f"You likely need to set the key '{missing_key}' via 'backend options'."
+            ) from e
 
 @dataclass
 class SetStateFromBackendOptionsTransformationDashToUnderscore(SetStateFromBackendOptionsTransformation):
@@ -36,7 +44,7 @@ def athena_pipeline_security_lake_table_name() -> ProcessingPipeline:
 
     return ProcessingPipeline(
         name="athena map source to table name pipeline",
-        allowed_backends=frozenset(), # Set of identifiers of backends (from the backends mapping) that are allowed to use this processing pipeline. This can be used by frontends like Sigma CLI to warn the user about inappropriate usage.
+        allowed_backends=frozenset(["athena"]), # Set of identifiers of backends (from the backends mapping) that are allowed to use this processing pipeline. This can be used by frontends like Sigma CLI to warn the user about inappropriate usage.
         priority=20,
         items=[ ProcessingItem(
             identifier=f"table_{name}",

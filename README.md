@@ -52,6 +52,12 @@ functions—aren't implemented; see the Limitations section below.
 
 ## Usage
 
+From the CLI:
+```shell
+sigma convert -t athena rules/cloud/aws/cloudtrail/
+```
+
+From Python:
 ```python
 from sigma.backends.athena import athenaBackend
 from sigma.collection import SigmaCollection
@@ -136,6 +142,11 @@ This supports the following log sources:
 * product: `aws`, service: `vpc_flow_logs`
 * product: `aws`, service: `waf`
 * product: `aws`, service: `eks_audit`
+
+You can also use this pipeline from the CLI:
+```shell
+sigma convert -t athena -O aws_table_region=eu-west-2 -p athena_security_lake_table_name rules/cloud/aws/cloudtrail/
+```
 
 ### Select Column Names
 

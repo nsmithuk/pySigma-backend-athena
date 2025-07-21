@@ -18,7 +18,7 @@ Issues = "https://github.com/nsmithuk/pySigma-backend-athena/issues"
 Source = "https://github.com/nsmithuk/pySigma-backend-athena"
 
 [tool.poetry]
-version = "0.1.0"
+version = "0.1.4"
 repository = "https://github.com/nsmithuk/pySigma-backend-athena"
 readme = "README.md"
 classifiers = [

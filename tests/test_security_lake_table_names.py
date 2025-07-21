@@ -204,3 +204,31 @@ def test_table_name_eks_audit(athena_backend):
             """SELECT * FROM amazon_security_lake_table_eu_west_2_eks_audit_2_0 WHERE LOWER(fieldA) = 'valuea' AND LOWER(fieldB) = 'valueb'"""
         ]
     )
+
+def test_table_name_no_region_set():
+    pipeline = athena_pipeline_security_lake_table_name()
+    athena_backend = athenaBackend(
+        processing_pipeline=pipeline,
+        # aws_table_region="eu-west-2", # We've unset this to trigger the error.
+    )
+
+    with pytest.raises(KeyError) as exc_info:
+        athena_backend.convert(
+            SigmaCollection.from_yaml(
+                """
+            title: Test
+            status: test
+            logsource:
+                product: aws
+                service: cloudtrail
+            detection:
+                sel:
+                    fieldA: valueA
+                    fieldB: valueB
+                condition: sel
+        """
+            )
+        )
+
+        # Check that the expected missing key is in the error message
+        assert "aws_table_region" in str(exc_info.value)
