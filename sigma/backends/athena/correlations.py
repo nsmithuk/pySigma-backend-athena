@@ -267,6 +267,4 @@ class athenaBackend(athenaBaseBackend):
         if not isinstance(rule, SigmaCorrelationRule):
             return super().finalize_query_default(rule, query, index, state)
 
-        # print("here")
-        # result = query.format(selectfields=self._formatted_fields)
         return query
